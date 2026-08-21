@@ -27,12 +27,6 @@ class SherpaTtsService {
       return;
     }
 
-    print('Initializing LOCAL Sherpa-ONNX TTS...');
-
-    // ----------------------------------------------------------
-    // VITS / PIPER MODEL CONFIG
-    // ----------------------------------------------------------
-
     final vitsConfig =
         sherpa_onnx.OfflineTtsVitsModelConfig(
       model: _modelPath,
@@ -40,35 +34,21 @@ class SherpaTtsService {
       dataDir: _dataDir,
     );
 
-    // ----------------------------------------------------------
-    // OFFLINE TTS MODEL CONFIG
-    // ----------------------------------------------------------
-
     final modelConfig =
         sherpa_onnx.OfflineTtsModelConfig(
       vits: vitsConfig,
     );
-
-    // ----------------------------------------------------------
-    // TTS CONFIG
-    // ----------------------------------------------------------
 
     final ttsConfig =
         sherpa_onnx.OfflineTtsConfig(
       model: modelConfig,
     );
 
-    // ----------------------------------------------------------
-    // CREATE TTS
-    // ----------------------------------------------------------
-
     _tts = sherpa_onnx.OfflineTts(
       ttsConfig,
     );
 
     _initialized = true;
-
-    print('LOCAL TTS READY');
   }
 
   // ============================================================
@@ -79,36 +59,22 @@ class SherpaTtsService {
     String text,
   ) {
     if (!_initialized) {
-      throw Exception(
+      throw StateError(
         'TTS has not been initialized.',
       );
     }
 
-    if (text.trim().isEmpty) {
+    final cleanText = text.trim();
+
+    if (cleanText.isEmpty) {
       return null;
     }
 
-    print('--------------------------------');
-    print('LOCAL TTS');
-    print('Raw text: ${text.trim()}');
-
     final audio = _tts.generate(
-      text: text.trim(),
+      text: cleanText,
       sid: 0,
       speed: 1.0,
     );
-
-    print(
-      'Generated samples: '
-      '${audio.samples.length}',
-    );
-
-    print(
-      'Sample rate: '
-      '${audio.sampleRate}',
-    );
-
-    print('--------------------------------');
 
     return audio;
   }
@@ -121,8 +87,6 @@ class SherpaTtsService {
     if (_initialized) {
       _tts.free();
       _initialized = false;
-
-      print('LOCAL TTS DISPOSED');
     }
   }
 }

@@ -8,12 +8,12 @@ import 'package:record/record.dart';
 
 import 'services/sherpa_tts_service.dart';
 import 'services/sherpa_stt_service.dart';
-import 'services/ollama_llm_service.dart';
+import 'services/llama_llm_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // LOCAL Sherpa-ONNX native library.
+  // Initialize local Sherpa-ONNX native bindings.
   sherpa_onnx.initBindings();
 
   runApp(const MyApp());
@@ -54,11 +54,11 @@ class _HomePageState extends State<HomePage> {
       SherpaSttService();
 
   // ============================================================
-  // LOCAL LLM
+  // LOCAL LLM - LLAMADART / LLAMA 3.2 1B
   // ============================================================
 
-  final OllamaLlmService _ollamaLlmService =
-      OllamaLlmService();
+  final LlamaLlmService _llamaLlmService =
+      LlamaLlmService();
 
   // ============================================================
   // AUDIO
@@ -91,7 +91,7 @@ class _HomePageState extends State<HomePage> {
 
   bool _ttsReady = false;
   bool _sttReady = false;
-  bool _ollamaReady = false;
+  bool _llamaReady = false;
 
   bool _isRecording = false;
   bool _isRecognizing = false;
@@ -102,10 +102,7 @@ class _HomePageState extends State<HomePage> {
       'Loading EchoCube local AI...';
 
   String _recognizedText = '';
-
   String _llmResponse = '';
-
-  int _audioPacketCount = 0;
 
   // ============================================================
   // INITIALIZATION
@@ -140,7 +137,8 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _ttsReady = true;
         _status =
-            'TTS ready. Loading local STT...';
+            'TTS ready.\n'
+            'Loading local STT...';
       });
 
       // --------------------------------------------------------
@@ -154,37 +152,31 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _sttReady = true;
         _status =
-            'STT ready. Checking Ollama...';
+            'STT ready.\n'
+            'Loading local Llama 3.2 1B...';
       });
 
       // --------------------------------------------------------
-      // OLLAMA
+      // LOCAL LLAMA
       // --------------------------------------------------------
 
-      final ollamaAvailable =
-          await _ollamaLlmService.isAvailable();
+      await _llamaLlmService.initialize();
 
       if (!mounted) return;
 
-      if (ollamaAvailable) {
-        setState(() {
-          _ollamaReady = true;
-          _status =
-              'EchoCube ready!\n'
-              'TTS + STT + Gemma 2B';
-        });
-      } else {
-        setState(() {
-          _ollamaReady = false;
-          _status =
-              'TTS + STT ready.\n'
-              'Ollama is not available.';
-        });
-      }
+      setState(() {
+        _llamaReady = true;
+
+        _status =
+            'EchoCube ready!\n'
+            'TTS + STT + Llama 3.2 1B';
+      });
     } catch (e) {
       if (!mounted) return;
 
       setState(() {
+        _llamaReady = false;
+
         _status =
             'Initialization error:\n$e';
       });
@@ -201,6 +193,7 @@ class _HomePageState extends State<HomePage> {
         _status =
             'STT is still loading...';
       });
+
       return;
     }
 
@@ -228,7 +221,6 @@ class _HomePageState extends State<HomePage> {
 
       // Reset previous audio.
       _audioSamples.clear();
-      _audioPacketCount = 0;
 
       if (mounted) {
         setState(() {
@@ -269,6 +261,7 @@ class _HomePageState extends State<HomePage> {
 
       setState(() {
         _isRecording = true;
+
         _status =
             '🎤 Listening...\n'
             'Speak now.';
@@ -278,6 +271,7 @@ class _HomePageState extends State<HomePage> {
 
       setState(() {
         _isRecording = false;
+
         _status =
             'Microphone error:\n$e';
       });
@@ -291,8 +285,6 @@ class _HomePageState extends State<HomePage> {
   void _processMicrophoneData(
     Uint8List data,
   ) {
-    _audioPacketCount++;
-
     final byteData =
         ByteData.sublistView(data);
 
@@ -390,16 +382,17 @@ class _HomePageState extends State<HomePage> {
       }
 
       // --------------------------------------------------------
-      // SEND STT TEXT TO GEMMA
+      // SEND STT TEXT TO LOCAL LLAMA
       // --------------------------------------------------------
 
-      await _sendToGemma(text);
+      await _sendToLlama(text);
     } catch (e) {
       if (!mounted) return;
 
       setState(() {
         _isRecording = false;
         _isRecognizing = false;
+
         _status =
             'STT error:\n$e';
       });
@@ -407,19 +400,19 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ============================================================
-  // SEND TEXT TO GEMMA
+  // SEND TEXT TO LOCAL LLAMA
   // ============================================================
 
-  Future<void> _sendToGemma(
+  Future<void> _sendToLlama(
     String text,
   ) async {
-    if (!_ollamaReady) {
+    if (!_llamaReady) {
       if (!mounted) return;
 
       setState(() {
         _status =
-            'Ollama is not available.\n'
-            'Make sure Ollama is running.';
+            'Llama is not ready yet.\n'
+            'Please wait for initialization.';
       });
 
       return;
@@ -432,11 +425,11 @@ class _HomePageState extends State<HomePage> {
         _isThinking = true;
 
         _status =
-            '🤖 Gemma 2B is thinking...';
+            '🤖 Llama 3.2 1B is thinking...';
       });
 
       final response =
-          await _ollamaLlmService.generate(
+          await _llamaLlmService.generate(
         text,
       );
 
@@ -444,15 +437,16 @@ class _HomePageState extends State<HomePage> {
 
       setState(() {
         _isThinking = false;
+
         _llmResponse = response;
 
         _status =
-            '🤖 Gemma response received.\n'
+            '🤖 Llama response received.\n'
             '🔊 Preparing Piper TTS...';
       });
 
       // --------------------------------------------------------
-      // SPEAK GEMMA RESPONSE
+      // SPEAK LLAMA RESPONSE
       // --------------------------------------------------------
 
       await _speakResponse(response);
@@ -463,13 +457,13 @@ class _HomePageState extends State<HomePage> {
         _isThinking = false;
 
         _status =
-            'Gemma/Ollama error:\n$e';
+            'Llama error:\n$e';
       });
     }
   }
 
   // ============================================================
-  // SPEAK GEMMA RESPONSE
+  // SPEAK LLAMA RESPONSE
   // ============================================================
 
   Future<void> _speakResponse(
@@ -561,7 +555,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ============================================================
-  // MANUAL TEXT → GEMMA → TTS
+  // MANUAL TEXT → LLAMA → TTS
   // ============================================================
 
   Future<void> _sendTypedText() async {
@@ -579,7 +573,7 @@ class _HomePageState extends State<HomePage> {
 
     _textController.clear();
 
-    await _sendToGemma(text);
+    await _sendToLlama(text);
   }
 
   // ============================================================
@@ -766,6 +760,8 @@ class _HomePageState extends State<HomePage> {
 
     _sherpaSttService.dispose();
 
+    _llamaLlmService.dispose();
+
     super.dispose();
   }
 
@@ -806,8 +802,7 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     const Text(
                       'EchoCube',
-                      style:
-                          TextStyle(
+                      style: TextStyle(
                         fontSize: 26,
                         fontWeight:
                             FontWeight.bold,
@@ -833,8 +828,8 @@ class _HomePageState extends State<HomePage> {
                       '${_ttsReady ? "READY" : "LOADING"}\n'
                       'STT: '
                       '${_sttReady ? "READY" : "LOADING"}\n'
-                      'Gemma: '
-                      '${_ollamaReady ? "READY" : "OFFLINE"}',
+                      'Llama 3.2 1B: '
+                      '${_llamaReady ? "READY" : "LOADING"}',
                       textAlign:
                           TextAlign.center,
                     ),
@@ -856,7 +851,8 @@ class _HomePageState extends State<HomePage> {
                   (!_isRecording &&
                           !_isRecognizing &&
                           !_isThinking &&
-                          !_isSpeaking)
+                          !_isSpeaking &&
+                          _llamaReady)
                       ? _startRecording
                       : null,
 
@@ -868,7 +864,7 @@ class _HomePageState extends State<HomePage> {
                 _isRecording
                     ? 'Listening...'
                     : _isThinking
-                        ? 'Gemma Thinking...'
+                        ? 'Llama Thinking...'
                         : _isSpeaking
                             ? 'Speaking...'
                             : 'Talk to EchoCube',
@@ -916,8 +912,7 @@ class _HomePageState extends State<HomePage> {
 
             const Text(
               'Recognized Speech',
-              style:
-                  TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight:
                     FontWeight.bold,
@@ -936,20 +931,18 @@ class _HomePageState extends State<HomePage> {
                   BoxDecoration(
                 border:
                     Border.all(
-                  color:
-                      Colors.grey,
+                  color: Colors.grey,
                 ),
 
                 borderRadius:
-                    BorderRadius.circular(
-                  8,
-                ),
+                    BorderRadius.circular(8),
               ),
 
               child: Text(
                 _recognizedText.isEmpty
                     ? 'Your speech will appear here...'
                     : _recognizedText,
+
                 style:
                     const TextStyle(
                   fontSize: 17,
@@ -962,13 +955,12 @@ class _HomePageState extends State<HomePage> {
             ),
 
             // ==================================================
-            // GEMMA RESPONSE
+            // LLAMA RESPONSE
             // ==================================================
 
             const Text(
-              'Gemma 2B Response',
-              style:
-                  TextStyle(
+              'Llama 3.2 1B Response',
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight:
                     FontWeight.bold,
@@ -987,20 +979,18 @@ class _HomePageState extends State<HomePage> {
                   BoxDecoration(
                 border:
                     Border.all(
-                  color:
-                      Colors.grey,
+                  color: Colors.grey,
                 ),
 
                 borderRadius:
-                    BorderRadius.circular(
-                  8,
-                ),
+                    BorderRadius.circular(8),
               ),
 
               child: Text(
                 _llmResponse.isEmpty
-                    ? 'Gemma response will appear here...'
+                    ? 'Llama response will appear here...'
                     : _llmResponse,
+
                 style:
                     const TextStyle(
                   fontSize: 17,
@@ -1017,9 +1007,8 @@ class _HomePageState extends State<HomePage> {
             // ==================================================
 
             const Text(
-              'Text → Gemma → Voice',
-              style:
-                  TextStyle(
+              'Text → Llama → Voice',
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight:
                     FontWeight.bold,
@@ -1053,7 +1042,8 @@ class _HomePageState extends State<HomePage> {
             ElevatedButton.icon(
               onPressed:
                   (!_isThinking &&
-                          !_isSpeaking)
+                          !_isSpeaking &&
+                          _llamaReady)
                       ? _sendTypedText
                       : null,
 
@@ -1062,7 +1052,7 @@ class _HomePageState extends State<HomePage> {
               ),
 
               label: const Text(
-                'Ask Gemma',
+                'Ask Llama',
               ),
             ),
 
@@ -1070,13 +1060,16 @@ class _HomePageState extends State<HomePage> {
               height: 25,
             ),
 
+            // ==================================================
+            // LOCAL / OFFLINE COMPONENTS
+            // ==================================================
+
             const Text(
               'Local / Offline Components',
               textAlign:
                   TextAlign.center,
 
-              style:
-                  TextStyle(
+              style: TextStyle(
                 fontWeight:
                     FontWeight.bold,
               ),
@@ -1088,7 +1081,7 @@ class _HomePageState extends State<HomePage> {
 
             const Text(
               'STT: Sherpa-ONNX NeMo Conformer Medium\n'
-              'LLM: Ollama Gemma 2B\n'
+              'LLM: LlamaDart — Llama 3.2 1B Q4_K_M\n'
               'TTS: Sherpa-ONNX Piper Kathleen Low\n'
               'Audio: 16 kHz • Mono • PCM 16-bit',
               textAlign:
@@ -1100,3 +1093,4 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+

@@ -30,10 +30,6 @@ class SherpaSttService {
       return;
     }
 
-    print(
-      'Initializing LOCAL NeMo Conformer Medium STT...',
-    );
-
     // ==========================================================
     // NeMo CTC MODEL
     // ==========================================================
@@ -77,10 +73,6 @@ class SherpaSttService {
     );
 
     _initialized = true;
-
-    print(
-      'LOCAL NeMo Conformer Medium STT READY',
-    );
   }
 
   // ============================================================
@@ -92,7 +84,7 @@ class SherpaSttService {
     int sampleRate,
   ) {
     if (!_initialized) {
-      throw Exception(
+      throw StateError(
         'STT has not been initialized.',
       );
     }
@@ -153,12 +145,7 @@ class SherpaSttService {
   void dispose() {
     if (_initialized) {
       _recognizer.free();
-
       _initialized = false;
-
-      print(
-        'LOCAL STT DISPOSED',
-      );
     }
   }
 }

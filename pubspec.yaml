@@ -36,16 +36,19 @@ dependencies:
   record: ^6.1.2
 
   # ==========================================================
-  # MOBILE LOCAL LLM
-  #
-  # Gemma 2B GGUF
-  # llama.cpp native Android layer
-  #
-  # NO OLLAMA
-  # NO HTTP API
-  # NO INTERNET REQUIRED AT RUNTIME
+  # NETWORK / mDNS DEVICE DISCOVERY
   # ==========================================================
 
+  nsd: ^4.0.0
+
+  # ==========================================================
+  # LOCAL / OFFLINE LLM
+  # ==========================================================
+
+  llamadart: 0.8.19
+
+  path_provider: ^2.1.0
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -71,18 +74,8 @@ flutter:
     - assets/models/stt/nemo-conformer-medium/
 
     # ========================================================
-    # LOCAL MOBILE LLM - GEMMA 2B GGUF
-    #
-    # Put your GGUF model here:
-    #
-    # assets/models/llm/gemma-2b/
-    #
-    # Example:
-    # gemma-2b-it-Q4_K_M.gguf
-    #
-    # IMPORTANT:
-    # This model is bundled into the Flutter application.
-    # It does NOT use Ollama.
+    # LOCAL LLM - LLAMA 3.2 1B INSTRUCT GGUF
     # ========================================================
 
-    - assets/models/llm/gemma-2b/
+    - assets/models/llm/llama/
+
