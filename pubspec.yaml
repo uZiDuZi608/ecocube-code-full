@@ -71,7 +71,7 @@ flutter:
     # LOCAL STT - NEMO CONFORMER MEDIUM CTC
     # ========================================================
 
-    - assets/models/stt/nemo-conformer-medium/
+    - assets/models/stt/sherpa-onnx-nemo-ctc-en-conformer-medium/
 
     # ========================================================
     # LOCAL LLM - LLAMA 3.2 1B INSTRUCT GGUF
